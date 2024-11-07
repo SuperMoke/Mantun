@@ -33,7 +33,7 @@ export default function ClientHome() {
   useEffect(() => {
     fetchJobs();
     fetchCategories();
-    fetchUserName(); 
+    fetchUserName();
   }, [sortBy, selectedCategory]);
 
   const fetchJobs = async () => {
@@ -49,11 +49,19 @@ export default function ClientHome() {
         jobsQuery = query(jobsQuery, orderBy("jobRate", "desc"));
       }
 
-      const unsubscribe = onSnapshot(jobsQuery, (snapshot) => {
-        const jobsData = snapshot.docs.map((doc) => ({
-          id: doc.id,
-          ...doc.data(),
-        }));
+      const unsubscribe = onSnapshot(jobsQuery, async (snapshot) => {
+        const jobsPromises = snapshot.docs.map(async (doc) => {
+          const jobData = doc.data();
+          const profilePic = await fetchFreelancerProfilePic(
+            jobData.freelancer_userid
+          );
+          return {
+            id: doc.id,
+            ...jobData,
+            freelancerProfilePic: profilePic,
+          };
+        });
+        const jobsData = await Promise.all(jobsPromises);
         setJobs(jobsData);
       });
 
@@ -131,6 +139,52 @@ export default function ClientHome() {
     }
   };
 
+  const sortByHighestPaid = async () => {
+  try {
+    const jobsQuery = query(
+      collection(db, "jobs"),
+      orderBy("jobRate", "desc")
+    );
+
+    const snapshot = await getDocs(jobsQuery);
+    const jobsPromises = snapshot.docs.map(async (doc) => {
+      const jobData = doc.data();
+      const profilePic = await fetchFreelancerProfilePic(jobData.freelancer_userid);
+      return {
+        id: doc.id,
+        ...jobData,
+        freelancerProfilePic: profilePic,
+      };
+    });
+    
+    const jobsData = await Promise.all(jobsPromises);
+    setJobs(jobsData);
+    setSortBy("highestPaid");
+  } catch (error) {
+    console.error("Error sorting by highest paid:", error);
+  }
+};
+
+
+  const fetchFreelancerProfilePic = async (freelancerId) => {
+    try {
+      if (!freelancerId) return null;
+
+      const userQuery = query(
+        collection(db, "users"),
+        where("userId", "==", freelancerId)
+      );
+      const userSnapshot = await getDocs(userQuery);
+      if (!userSnapshot.empty) {
+        return userSnapshot.docs[0].data().imageUrl;
+      }
+      return null;
+    } catch (error) {
+      console.error("Error fetching freelancer profile:", error);
+      return null;
+    }
+  };
+
   const onRefresh = async () => {
     setRefreshing(true);
     await fetchJobs();
@@ -142,11 +196,41 @@ export default function ClientHome() {
       onPress={() => navigation.navigate("Job Details", { jobId: item.id })}
     >
       <Card style={{ marginBottom: 16 }}>
+        <Card.Content>
+          <TouchableOpacity
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              marginBottom: 8,
+            }}
+            onPress={() =>
+              navigation.navigate("FreelancerProfileView", {
+                freelancerId: item.freelancer_userid,
+              })
+            }
+          >
+            <Image
+              source={
+                item.freelancerProfilePic
+                  ? { uri: item.freelancerProfilePic }
+                  : require("../../assets/Avatar.png")
+              }
+              style={{
+                width: 40,
+                height: 40,
+                borderRadius: 20,
+                marginRight: 8,
+              }}
+            />
+            <Text style={{ color: "gray", fontWeight: "500" }}>
+              {item.freelancer_fullName || "Anonymous"}
+            </Text>
+          </TouchableOpacity>
+        </Card.Content>
         <Card.Cover
           source={{ uri: item.imageUrl || "../../assets/Placeholder.png" }}
         />
         <Card.Content>
-          
           <Title>{item.jobTitle}</Title>
           <Paragraph>{item.jobDescription}</Paragraph>
           <View

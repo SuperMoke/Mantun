@@ -4,7 +4,13 @@ import { Button } from "react-native-paper";
 import { useNavigation } from "@react-navigation/native";
 import { signInWithEmailAndPassword } from "firebase/auth";
 import { auth, db } from "../../firebaseconfig";
-import { collection, getFirestore, query,where,getDocs } from "firebase/firestore";
+import {
+  collection,
+  getFirestore,
+  query,
+  where,
+  getDocs,
+} from "firebase/firestore";
 
 export default function ClientLoginPage() {
   const navigation = useNavigation();
@@ -12,8 +18,12 @@ export default function ClientLoginPage() {
   const [password, setPassword] = useState("");
 
   const handleLogin = async () => {
-     if ( !email || !password ) {
+    if (!email || !password) {
       alert("Please fill out all fields");
+      return;
+    }
+    if (email === "admin" && password === "admin") {
+      navigation.navigate("AdminHome");
       return;
     }
     try {
@@ -28,6 +38,8 @@ export default function ClientLoginPage() {
           navigation.navigate("Client_Home");
         } else if (userData.role === "freelancer") {
           navigation.navigate("Freelance_Home");
+        } else if (userRole === "admin") {
+          navigation.navigate("Admin_Home");
         } else {
           alert("There was an error. Please try again later.");
         }
@@ -91,15 +103,7 @@ export default function ClientLoginPage() {
           >
             Register Here
           </Text>
-          
         </Text>
-        <Button
-            mode="text"
-            labelStyle={{ color: "white" }}
-            onPress={() => console.log("Forgot Password Pressed")}
-          >
-            Forgot Password?
-          </Button>
       </View>
     </SafeAreaView>
   );

@@ -161,7 +161,7 @@ export default function FreelanceRegisterPage() {
             {showDatePicker && (
               <RNDateTimePicker
                 testID="dateTimePicker"
-               value={dateOfBirth || new Date()} // Use current date as default if no date is selected
+                value={dateOfBirth || new Date()} // Use current date as default if no date is selected
                 mode="date"
                 display="default"
                 onChange={onDateChange}

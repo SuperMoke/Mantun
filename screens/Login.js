@@ -34,6 +34,8 @@ export default function LoginScreen({ navigation }) {
           navigation.navigate("Client_Home");
         } else if (userRole === "freelancer") {
           navigation.navigate("Freelance_Home");
+        } else if (userRole === "admin") {
+          navigation.navigate("Admin_Home");
         } else {
           console.log("User role not found");
           navigation.navigate("Login");
@@ -72,12 +74,10 @@ export default function LoginScreen({ navigation }) {
             onChangeText={setEmail}
             placeholder="Enter Your Email"
             className="bg-white"
-            
           />
         </View>
 
         <View className="mb-2">
-         
           <TextInput
             mode="outlined"
             value={password}
@@ -85,7 +85,6 @@ export default function LoginScreen({ navigation }) {
             placeholder="Enter Your Password"
             secureTextEntry
             className="bg-white"
-            
           />
         </View>
 

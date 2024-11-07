@@ -1,16 +1,13 @@
 {
   "expo": {
-    "plugins": [
-      [
-        "expo-image-picker",
-        {
-          "photosPermission": "The app accesses your photos to let your share then with your clients"
-        }
-      ],
-      "expo-font"
-    ],
     "name": "Mantun",
     "slug": "Mantun",
+    "splash": {
+      "backgroundColor": "#ffffff"
+    },
+    "icon": "./assets/freelancer.png",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
     "version": "1.0.0",
     "assetBundlePatterns": [
       "**/*"
@@ -20,6 +17,9 @@
         "projectId": "77552fa8-b7e3-4e31-9f73-1e0e26197b44"
       }
     },
-    "owner": "macoyskieee"
+    "android": {
+      "package": "com.capstone.mantun",
+      "googleServicesFile": "./google-services.json"
+    }
   }
 }

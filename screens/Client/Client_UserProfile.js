@@ -9,13 +9,18 @@ import {
   where,
   query,
 } from "firebase/firestore";
-
 import * as ImagePicker from "expo-image-picker";
-import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
+import {
+  getStorage,
+  ref,
+  uploadBytes,
+  getDownloadURL,
+  updateDoc,
+} from "firebase/storage";
 import { Alert } from "react-native";
 
 export default function Client_UserProfile({ navigation }) {
- const [userData, setUserData] = useState(null);
+  const [userData, setUserData] = useState(null);
 
   useEffect(() => {
     const unsubscribe = auth.onAuthStateChanged(async (currentUser) => {
@@ -50,7 +55,7 @@ export default function Client_UserProfile({ navigation }) {
       });
   };
 
-   const formatDate = (timestamp) => {
+  const formatDate = (timestamp) => {
     if (!timestamp) return "N/A";
     const date = new Date(timestamp.seconds * 1000);
     return date.toLocaleDateString(); // You can customize the date format as needed
@@ -144,35 +149,32 @@ export default function Client_UserProfile({ navigation }) {
               <Title className="mt-2 text-xl font-bold">
                 {userData?.fullName}
               </Title>
-              
             </View>
             <View className="mt-4">
-               <Title className=" text-xl font-bold">
-                Personal Information
-              </Title>
+              <Title className=" text-xl font-bold">Personal Information</Title>
               <View className="flex-row items-center mb-2">
                 <Text className="font-bold text-gray-700">Email:</Text>
                 <Text className="ml-2 text-gray-700">{userData?.email}</Text>
               </View>
               <View className="flex-row items-center mb-2">
                 <Text className="font-bold text-gray-700">Phone Number:</Text>
-                <Text className="ml-2 text-gray-700">{userData?.phoneNumber}</Text>
+                <Text className="ml-2 text-gray-700">
+                  {userData?.phoneNumber}
+                </Text>
               </View>
               <View className="flex-row items-center mb-2">
                 <Text className="font-bold text-gray-700">Date of Birth:</Text>
-                 <Text className="ml-2 text-gray-700">
+                <Text className="ml-2 text-gray-700">
                   {formatDate(userData?.dateOfBirth)}
                 </Text>
               </View>
               <View className="flex-row items-center mb-2">
-                <Text className="font-bold text-gray-700">Location/Address:</Text>
+                <Text className="font-bold text-gray-700">
+                  Location/Address:
+                </Text>
                 <Text className="ml-2 text-gray-700">{userData?.location}</Text>
               </View>
-               <View className="flex-row items-center mb-2">
-                <Text className="font-bold text-gray-700">Account Status:</Text>
-                <Text className="ml-2 text-gray-700">{userData?.accountstatus}</Text>
-              </View>
-            </View>    
+            </View>
           </Card.Content>
         </Card>
       </View>

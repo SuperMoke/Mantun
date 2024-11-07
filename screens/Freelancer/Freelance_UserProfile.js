@@ -74,6 +74,23 @@ export default function Freelance_UserProfile({ navigation }) {
     }
   };
 
+  const pickIdDocument = async () => {
+    try {
+      let result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [4, 3],
+        quality: 1,
+      });
+
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        await uploadIdDocument(result.assets[0].uri);
+      }
+    } catch (error) {
+      Alert.alert("Error", "Failed to pick ID document. Please try again.");
+    }
+  };
+
   const uploadImage = async (uri) => {
     if (!uri) {
       console.error("No image URI provided");
@@ -119,6 +136,44 @@ export default function Freelance_UserProfile({ navigation }) {
     }
   };
 
+  const uploadIdDocument = async (uri) => {
+    try {
+      const response = await fetch(uri);
+      const blob = await response.blob();
+      const storage = getStorage();
+      const storageRef = ref(storage, `idDocuments/${auth.currentUser.uid}`);
+
+      await uploadBytes(storageRef, blob);
+      const downloadURL = await getDownloadURL(storageRef);
+
+      const firestore = getFirestore();
+      const usersRef = collection(firestore, "users");
+      const q = query(usersRef, where("userId", "==", auth.currentUser.uid));
+      const querySnapshot = await getDocs(q);
+
+      if (!querySnapshot.empty) {
+        const userDoc = querySnapshot.docs[0];
+        await updateDoc(userDoc.ref, {
+          idDocumentUrl: downloadURL,
+          verificationStatus: "pending",
+        });
+
+        setUserData((prev) => ({
+          ...prev,
+          idDocumentUrl: downloadURL,
+          verificationStatus: "pending",
+        }));
+
+        Alert.alert(
+          "Success",
+          "ID document submitted successfully! Your verification is pending review."
+        );
+      }
+    } catch (error) {
+      Alert.alert("Error", "Failed to upload ID document. Please try again.");
+    }
+  };
+
   return (
     <ScrollView className="flex-1 bg-gray-100">
       <View className="bg-[#5d8064] h-40 justify-end pb-5 px-5">
@@ -144,7 +199,6 @@ export default function Freelance_UserProfile({ navigation }) {
               <Title className="mt-2 text-xl font-bold">
                 {userData?.fullName}
               </Title>
-              
             </View>
             <View className="mt-4">
               <Title className=" text-xl font-bold">Personal Information</Title>
@@ -172,10 +226,6 @@ export default function Freelance_UserProfile({ navigation }) {
                   Location/Address:
                 </Text>
                 <Text className="ml-2 text-gray-700">{userData?.location}</Text>
-              </View>
-               <View className="flex-row items-center mb-2">
-                <Text className="font-bold text-gray-700">Account Status:</Text>
-                <Text className="ml-2 text-gray-700">{userData?.accountstatus}</Text>
               </View>
             </View>
             <View className="mt-4">
@@ -208,6 +258,40 @@ export default function Freelance_UserProfile({ navigation }) {
           </Card.Content>
         </Card>
       </View>
+      <View className="mt-4 px-5">
+        <Card elevation={4} className="rounded-lg">
+          <Card.Content>
+            <Title className="text-xl font-bold">Account Verification</Title>
+            <View className="mt-2">
+              <Text className="text-gray-700 mb-2">
+                Status: {userData?.verificationStatus || "Not Verified"}
+              </Text>
+              {(!userData?.verificationStatus ||
+                userData?.verificationStatus === "rejected") && (
+                <TouchableOpacity
+                  className="bg-[#5d8064] py-3 rounded-lg items-center"
+                  onPress={pickIdDocument}
+                >
+                  <Text className="text-white font-bold">
+                    Submit ID for Verification
+                  </Text>
+                </TouchableOpacity>
+              )}
+              {userData?.verificationStatus === "pending" && (
+                <Text className="text-orange-500 font-bold">
+                  Your verification is under review
+                </Text>
+              )}
+              {userData?.verificationStatus === "verified" && (
+                <Text className="text-green-500 font-bold">
+                  Your account is verified ✓
+                </Text>
+              )}
+            </View>
+          </Card.Content>
+        </Card>
+      </View>
+
       <View className="mt-6 px-5">
         <TouchableOpacity
           className="bg-[#5d8064]  py-3 rounded-lg items-center"

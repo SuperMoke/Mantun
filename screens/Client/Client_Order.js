@@ -14,10 +14,11 @@ import {
   Card,
   Avatar,
 } from "react-native-paper";
-import { collection, query, where, getDocs } from "firebase/firestore";
+import { collection, query, where, onSnapshot } from "firebase/firestore";
 import { onAuthStateChanged } from "firebase/auth";
 import { db, auth } from "../../firebaseconfig";
 import { useNavigation } from "@react-navigation/native";
+import { sendPushNotification } from "../../notificationHelper";
 
 export default function OrderScreen() {
   const [orders, setOrders] = useState([]);
@@ -26,45 +27,53 @@ export default function OrderScreen() {
   const navigation = useNavigation();
 
   useEffect(() => {
-    fetchCurrentUser();
-  }, []);
-
-  const fetchCurrentUser = () => {
-    onAuthStateChanged(auth, async (user) => {
+    const unsubscribeAuth = onAuthStateChanged(auth, (user) => {
       if (user) {
         setCurrentUser(user);
-        fetchOrders(user.uid);
-      } else {
-        console.log("User is not authenticated!");
+        // Set up real-time listener for orders
+        const ordersQuery = query(
+          collection(db, "orders"),
+          where("userId", "==", user.uid)
+        );
+
+        const unsubscribeOrders = onSnapshot(
+          ordersQuery,
+          (snapshot) => {
+            const ordersData = snapshot.docs.map((doc) => ({
+              id: doc.id,
+              ...doc.data(),
+            }));
+            // Sort orders to show Pending status first
+            const sortedOrders = ordersData.sort((a, b) => {
+              if (a.status === "Pending") return -1;
+              if (b.status === "Pending") return 1;
+              return 0;
+            });
+            setOrders(sortedOrders);
+          },
+          (error) => {
+            console.error("Error listening to orders:", error);
+          }
+        );
+
+        // Clean up listener when component unmounts
+        return () => unsubscribeOrders();
       }
     });
-  };
 
-  const fetchOrders = async (userId) => {
-    try {
-      const ordersQuery = query(
-        collection(db, "orders"),
-        where("userId", "==", userId)
-      );
-      const querySnapshot = await getDocs(ordersQuery);
-      const ordersData = querySnapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      }));
-      setOrders(ordersData);
-    } catch (error) {
-      console.error("Error fetching orders:", error);
-    }
-  };
+    // Clean up auth listener
+    return () => unsubscribeAuth();
+  }, []);
 
-  const onRefresh = async () => {
+  const onRefresh = () => {
     setRefreshing(true);
-    if (currentUser) {
-      await fetchOrders(currentUser.uid);
-    }
+    // No need to manually fetch since we have real-time updates
     setRefreshing(false);
   };
 
+  // Inside the payment success handler (where payment is confirmed)
+
+  // Rest of your existing render code remains the same
   const renderItem = ({ item }) => (
     <TouchableOpacity>
       <Card style={{ marginBottom: 16 }}>
@@ -86,6 +95,24 @@ export default function OrderScreen() {
           </Text>
         </Card.Content>
         <Card.Actions>
+          {item.status !== "Paid" && (
+            <Button
+              mode="contained"
+              className="bg-green-900"
+              onPress={() =>
+                navigation.navigate("Client_PaymentScreen", {
+                  freelancerName: item.freelance_name,
+                  jobRate: item.jobRate,
+                  orderId: item.id,
+                  freelancerId: item.freelancer_userid,
+                  orderStatus: item.status,
+                })
+              }
+              style={{ marginLeft: "auto" }}
+            >
+              Payment
+            </Button>
+          )}
           <Button
             mode="contained"
             className="bg-green-900"
@@ -95,7 +122,6 @@ export default function OrderScreen() {
                 freelancerName: item.freelance_name,
               })
             }
-            style={{ marginLeft: "auto" }}
           >
             Chat
           </Button>

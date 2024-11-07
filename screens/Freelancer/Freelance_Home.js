@@ -1,64 +1,131 @@
 import React, { useEffect, useState, useCallback } from "react";
-import { View, Text, FlatList, RefreshControl } from "react-native";
-import { Button, Title, Card, Paragraph } from "react-native-paper";
+import { View, FlatList, RefreshControl } from "react-native";
+import { Button, Title, Card, Paragraph, Text } from "react-native-paper";
 import { auth, db } from "../../firebaseconfig";
-import { collection, query, where, getDocs } from "firebase/firestore";
+import {
+  collection,
+  query,
+  where,
+  getDocs,
+  onSnapshot,
+} from "firebase/firestore";
 
 export default function Freelance_Home({ navigation }) {
   const [userName, setUserName] = useState("");
   const [orders, setOrders] = useState([]);
   const [refreshing, setRefreshing] = useState(false);
+  const [earnings, setEarnings] = useState({
+    totalEarnings: 0,
+    pendingPayments: 0,
+    completedPayments: 0,
+  });
 
-  const fetchUserName = async () => {
-    try {
-      const user = auth.currentUser;
-      if (user) {
-        const userEmail = user.email;
-        const userQuery = query(
-          collection(db, "users"),
-          where("email", "==", userEmail)
-        );
-        const userSnapshot = await getDocs(userQuery);
-        if (!userSnapshot.empty) {
-          const userData = userSnapshot.docs[0].data();
-          setUserName(userData.fullName);
-        }
-      }
-    } catch (error) {
-      console.error("Error fetching user name:", error);
-    }
-  };
+  // Replace fetchOrders with real-time listener
+  const setupOrdersListener = () => {
+    const user = auth.currentUser;
+    if (user) {
+      const ordersQuery = query(
+        collection(db, "orders"),
+        where("freelancer_userid", "==", user.uid)
+      );
 
-  const fetchOrders = async () => {
-    try {
-      const user = auth.currentUser;
-      if (user) {
-        const ordersQuery = query(
-          collection(db, "orders"),
-          where("freelancer_userid", "==", user.uid)
-        );
-        const ordersSnapshot = await getDocs(ordersQuery);
-        const ordersData = ordersSnapshot.docs.map((doc) => ({
+      return onSnapshot(ordersQuery, (snapshot) => {
+        const ordersData = snapshot.docs.map((doc) => ({
           id: doc.id,
           ...doc.data(),
         }));
         setOrders(ordersData);
-      }
-    } catch (error) {
-      console.error("Error fetching orders:", error);
+      });
     }
   };
 
+  // Replace fetchEarnings with real-time listener
+  const setupEarningsListener = () => {
+    const user = auth.currentUser;
+    if (user) {
+      const paymentsQuery = query(
+        collection(db, "payments"),
+        where("freelancerId", "==", user.uid)
+      );
+
+      return onSnapshot(paymentsQuery, (snapshot) => {
+        let total = 0;
+        let pending = 0;
+        let completed = 0;
+
+        snapshot.docs.forEach((doc) => {
+          const payment = doc.data();
+          if (payment.status === "Completed") {
+            completed += payment.freelancerAmount;
+            total += payment.freelancerAmount;
+          } else {
+            pending += payment.freelancerAmount;
+          }
+        });
+
+        setEarnings({
+          totalEarnings: total,
+          pendingPayments: pending,
+          completedPayments: completed,
+        });
+      });
+    }
+  };
+
+  // Modify the useEffect to setup real-time listeners
+  useEffect(() => {
+    fetchUserName();
+    const unsubscribeOrders = setupOrdersListener();
+    const unsubscribeEarnings = setupEarningsListener();
+
+    // Cleanup listeners when component unmounts
+    return () => {
+      if (unsubscribeOrders) unsubscribeOrders();
+      if (unsubscribeEarnings) unsubscribeEarnings();
+    };
+  }, []);
+
+  // Update onRefresh to only refresh userName since orders and earnings are real-time
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    await fetchOrders();
+    await fetchUserName();
     setRefreshing(false);
   }, []);
 
-  useEffect(() => {
-    fetchUserName();
-    fetchOrders();
-  }, []);
+  const pickImage = async () => {
+    let result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 1,
+    });
+
+    if (!result.canceled) {
+      uploadImage(result.assets[0].uri);
+    }
+  };
+
+  const uploadImage = async (uri) => {
+    const response = await fetch(uri);
+    const blob = await response.blob();
+    const storage = getStorage();
+    const storageRef = ref(storage, `profilePictures/${userData.id}`);
+
+    try {
+      await uploadBytes(storageRef, blob);
+      const downloadURL = await getDownloadURL(storageRef);
+
+      // Update Firestore document
+      const firestore = getFirestore();
+      const userRef = doc(firestore, "users", userData.id);
+      await updateDoc(userRef, { imageUrl: downloadURL });
+
+      // Update local state
+      setUserData((prevState) => ({ ...prevState, imageUrl: downloadURL }));
+    } catch (error) {
+      console.error("Error uploading image: ", error);
+    }
+  };
 
   const renderOrderItem = ({ item }) => (
     <Card className="mb-4">
@@ -83,16 +150,44 @@ export default function Freelance_Home({ navigation }) {
           mode="contained"
           className="bg-[#5d8064]"
           onPress={() =>
-            navigation.navigate("ChatScreen_Freelance", {
+            navigation.navigate("Freelance_Report", {
               clientId: item.userId,
               clientName: item.userName,
             })
           }
           style={{ marginLeft: "auto" }}
         >
+          Report
+        </Button>
+        <Button
+          mode="contained"
+          className="bg-[#5d8064]"
+          onPress={() =>
+            navigation.navigate("ChatScreen_Freelance", {
+              clientId: item.userId,
+              clientName: item.userName,
+            })
+          }
+        >
           Chat
         </Button>
       </Card.Actions>
+    </Card>
+  );
+
+  const EarningsCard = () => (
+    <Card className="mb-4">
+      <Card.Content>
+        <Title className="text-xl mb-2">Earnings Overview</Title>
+        <View className="flex-row justify-between mb-2">
+          <View>
+            <Text className="text-gray-600">Total Earnings</Text>
+            <Text className="text-lg font-bold text-green-700">
+              ₱{earnings.totalEarnings.toFixed(2)}
+            </Text>
+          </View>
+        </View>
+      </Card.Content>
     </Card>
   );
 
@@ -104,6 +199,7 @@ export default function Freelance_Home({ navigation }) {
         </Text>
       </View>
       <View className="px-4 py-2 flex-1">
+        <EarningsCard />
         <Title className="text-2xl font-bold mb-2">Active Orders</Title>
         {orders.length > 0 ? (
           <FlatList
@@ -114,7 +210,7 @@ export default function Freelance_Home({ navigation }) {
               <RefreshControl
                 refreshing={refreshing}
                 onRefresh={onRefresh}
-                colors={["#5d8064"]} // You can customize the color
+                colors={["#5d8064"]}
               />
             }
           />

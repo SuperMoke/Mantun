@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "661031703873",
+    "project_id": "mantun-8a4d8",
+    "storage_bucket": "mantun-8a4d8.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:661031703873:android:909cbff80d85c0223abdc0",
+        "android_client_info": {
+          "package_name": "com.capstone.mantun"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDYS3eJNBHybUxHs-XiGFGbo-697AVioXQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

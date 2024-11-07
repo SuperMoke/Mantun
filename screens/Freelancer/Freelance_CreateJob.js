@@ -1,11 +1,19 @@
 import React, { useState, useEffect } from "react";
 import { View, ScrollView, TouchableOpacity, Image, Alert } from "react-native";
 import { Text, Button, TextInput, Title } from "react-native-paper";
-import { collection, addDoc, serverTimestamp, query, where, getDocs } from "firebase/firestore";
+import {
+  collection,
+  addDoc,
+  serverTimestamp,
+  query,
+  where,
+  getDocs,
+} from "firebase/firestore";
 import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { db, auth } from "../../firebaseconfig"; // Ensure you import auth from your firebaseconfig
 import { useNavigation } from "@react-navigation/native";
 import * as ImagePicker from "expo-image-picker";
+import { registerForPushNotificationsAsync } from "../../notificationHelper";
 
 const categories = [
   "Virtual Assistance",
@@ -34,7 +42,8 @@ export default function CreateJobPost() {
 
   useEffect(() => {
     (async () => {
-      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      const { status } =
+        await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (status !== "granted") {
         Alert.alert(
           "Permission required",
@@ -46,29 +55,29 @@ export default function CreateJobPost() {
   });
 
   const fetchFreelancerFullName = async () => {
-      const currentUser = auth.currentUser;
-      if (!currentUser) {
-        Alert.alert("Error", "User not authenticated");
-        return;
-      }
+    const currentUser = auth.currentUser;
+    if (!currentUser) {
+      Alert.alert("Error", "User not authenticated");
+      return;
+    }
 
-      const freelancer_email = currentUser.email;
-      setFreelancerUid(currentUser.uid);
-      const usersRef = collection(db, "users");
-      const q = query(usersRef, where("email", "==", freelancer_email));
-      const querySnapshot = await getDocs(q);
+    const freelancer_email = currentUser.email;
+    setFreelancerUid(currentUser.uid);
+    const usersRef = collection(db, "users");
+    const q = query(usersRef, where("email", "==", freelancer_email));
+    const querySnapshot = await getDocs(q);
 
-      let fullName = "";
-      querySnapshot.forEach((doc) => {
-        fullName = doc.data().fullName;
-      });
+    let fullName = "";
+    querySnapshot.forEach((doc) => {
+      fullName = doc.data().fullName;
+    });
 
-      if (!fullName) {
-        Alert.alert("Error", "Full name not found for the current user");
-        return;
-      }
-      setFreelancerFullName(fullName);
-    };
+    if (!fullName) {
+      Alert.alert("Error", "Full name not found for the current user");
+      return;
+    }
+    setFreelancerFullName(fullName);
+  };
 
   const pickImage = async () => {
     let result = await ImagePicker.launchImageLibraryAsync({
@@ -115,6 +124,8 @@ export default function CreateJobPost() {
         return;
       }
 
+      const pushToken = await registerForPushNotificationsAsync();
+
       const freelancer_userid = currentUser.uid;
 
       const docRef = await addDoc(collection(db, "jobs"), {
@@ -124,8 +135,9 @@ export default function CreateJobPost() {
         category,
         deliverables,
         imageUrl,
+        freelancerPushToken: pushToken, // Add this line
         freelancer_userid: freelancerUid,
-        freelancer_fullName: freelancerFullName, 
+        freelancer_fullName: freelancerFullName,
         createdAt: serverTimestamp(),
       });
 
